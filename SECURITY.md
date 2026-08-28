@@ -25,7 +25,7 @@ You can expect an acknowledgement within **48 hours** and a fix or mitigation pl
 
 ## Security Best Practices for Users
 
-- Never commit your `.env` file or expose your `OPENAI_API_KEY` in public repositories.
+- Never commit your `.env` file or expose your `GEMINI_API_KEY` in public repositories.
 - Use `.gitignore` to exclude `.env` (already configured in this repo).
 - Rotate your API key immediately if you suspect it has been leaked.
 

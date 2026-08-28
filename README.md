@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0-black?logo=flask)](https://flask.palletsprojects.com)
-[![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini-412991?logo=openai)](https://openai.com)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-gemini--3.1--flash--lite-blue?logo=googlegemini)](https://deepmind.google/technologies/gemini/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
@@ -19,7 +19,7 @@
 
 | Feature | Description |
 |---|---|
-| 🤖 AI Generation | OpenAI `gpt-4o-mini` converts English → SQL |
+| 🤖 AI Generation | Google Gemini `gemini-3.1-flash-lite` converts English → SQL |
 | ⚙️ Offline Fallback | Rule-based engine when no API key is set |
 | 🎨 Syntax Highlighting | Color-coded SQL output |
 | ✅ SQL Validation | Checks keywords, semicolons, clauses |
@@ -53,8 +53,8 @@ copy .env.example .env       # Windows
 Open `.env` and set your key (optional — rule-based fallback works without it):
 
 ```
-OPENAI_API_KEY=sk-your-key-here
-OPENAI_MODEL=gpt-4o-mini      # optional; change to any supported model
+GEMINI_API_KEY=your-gemini-key-here
+GEMINI_MODEL=gemini-3.1-flash-lite      # optional; change to any supported model
 FLASK_DEBUG=false
 PORT=5000
 ```
@@ -98,7 +98,7 @@ AI_SQL_Assistant/
 { "query": "show all customers from Pune" }
 
 // Response
-{ "sql": "SELECT *\n    FROM customers\n    WHERE city = 'Pune';", "method": "openai" }
+{ "sql": "SELECT *\n    FROM customers\n    WHERE city = 'Pune';", "method": "gemini" }
 ```
 
 ### `GET /health`
@@ -125,7 +125,7 @@ Find average salary by department
 ## 🛠️ Tech Stack
 
 - **Backend:** Python · Flask · Flask-CORS · python-dotenv
-- **AI:** OpenAI `gpt-4o-mini` · Rule-based NLP fallback
+- **AI:** Google Gemini `gemini-3.1-flash-lite` · Rule-based NLP fallback
 - **Frontend:** Vanilla HTML · CSS · JavaScript
 - **Design:** Refined dark theme · Green / Grey / Black · JetBrains Mono · Inter
 

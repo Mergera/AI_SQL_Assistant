@@ -51,7 +51,7 @@ def generate():
     """
     POST /generate
     Body:    { "query": "<natural language query>" }
-    Returns: { "sql": "<SQL statement>", "method": "openai|rule-based" }
+    Returns: { "sql": "<SQL statement>", "method": "gemini|rule-based" }
           or { "error": "<error message>" }
     """
     try:

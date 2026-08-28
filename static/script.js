@@ -309,7 +309,6 @@ function Header() {
         <div class="brand-logo" aria-hidden="true">🗄️</div>
         <span class="brand-name">AI SQL Assistant</span>
       </div>
-      <span class="brand-tag">Powered by Gemini</span>
     </header>
   `;
 }

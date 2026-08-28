@@ -4,7 +4,7 @@ sql_generator.py
 AI-powered SQL generation service.
 
 Supports:
-  - OpenAI Chat Completions API  (preferred; model configurable via OPENAI_MODEL env var)
+  - Google Gemini API  (preferred; model configurable via GEMINI_MODEL env var)
   - Rule-based fallback           (no API key required)
 
 Output is post-processed by SQLOutputTuner which:
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# OpenAI configuration (all tunable via environment variables)
+# Gemini configuration (all tunable via environment variables)
 # ---------------------------------------------------------------------------
 
 GEMINI_MODEL       = os.getenv("GEMINI_MODEL",       "gemini-3.1-flash-lite")
@@ -327,7 +327,7 @@ _ENTITY_NOUNS: frozenset[str] = frozenset(_ENTITY_MAP.keys())
 
 class RuleBasedSQLGenerator:
     """
-    A pattern-matching SQL generator used when no OpenAI key is configured.
+    A pattern-matching SQL generator used when no Gemini key is configured.
     Handles common English query patterns and produces well-formatted SQL
     via SQLOutputTuner.
     """
@@ -566,7 +566,7 @@ def generate_sql(natural_query: str) -> dict:
 
     Returns a dict with:
       - sql    : the generated SQL string
-      - method : 'openai' | 'rule-based'
+      - method : 'gemini' | 'rule-based'
       - error  : error message string (only present on failure)
     """
     if not natural_query or not natural_query.strip():
