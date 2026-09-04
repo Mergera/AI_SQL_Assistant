@@ -6,7 +6,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0-black?logo=flask)](https://flask.palletsprojects.com)
-[![Google Gemini](https://img.shields.io/badge/Google%20GenAI-gemini--3.1--flash--lite-blue?logo=googlegemini)](https://deepmind.google/technologies/gemini/)
+[![LiteLLM](https://img.shields.io/badge/LiteLLM-Multi--LLM-blue?logo=openai)](https://litellm.ai/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
@@ -15,7 +15,7 @@
 
 | Feature | Description |
 |---|---|
-| 🤖 AI Generation | Google Gemini `gemini-3.1-flash-lite` converts English → SQL |
+| 🤖 Universal LLM Support | Powered by LiteLLM (OpenAI, Anthropic, Gemini, Groq, etc.) |
 | 💡 SQL Explanation | Breaks down complex SQL queries into plain-English steps |
 | ⚙️ Offline Fallback | Rule-based engine when no API key is set |
 | 🎨 Syntax Highlighting | Color-coded SQL output |
@@ -47,11 +47,17 @@ copy .env.example .env       # Windows
 # cp .env.example .env       # macOS / Linux
 ```
 
-Open `.env` and set your key (optional — rule-based fallback works without it):
+Open `.env` and configure your preferred LLM provider:
 
 ```
-GEMINI_API_KEY=your-gemini-key-here
-GEMINI_MODEL=gemini-3.1-flash-lite      # optional; change to any supported model
+# Set the API key for your preferred provider
+GEMINI_API_KEY=your-gemini-key
+OPENAI_API_KEY=your-openai-key
+ANTHROPIC_API_KEY=your-anthropic-key
+
+# Set the LLM model to use
+LLM_MODEL=gemini/gemini-3.1-flash-lite  # or gpt-4o, claude-3-5-sonnet-20240620, etc.
+
 FLASK_DEBUG=false
 PORT=5000
 ```
@@ -95,7 +101,7 @@ AI_SQL_Assistant/
 { "query": "show all customers from Pune" }
 
 // Response
-{ "sql": "SELECT *\n    FROM customers\n    WHERE city = 'Pune';", "method": "gemini" }
+{ "sql": "SELECT *\n    FROM customers\n    WHERE city = 'Pune';", "method": "llm" }
 ```
 
 ### `POST /explain`
@@ -105,7 +111,7 @@ AI_SQL_Assistant/
 { "sql": "SELECT * FROM customers WHERE city = 'Pune';" }
 
 // Response
-{ "explanation": "This query retrieves all data from the customers table where the city is Pune.", "method": "gemini" }
+{ "explanation": "This query retrieves all data from the customers table where the city is Pune.", "method": "llm" }
 ```
 
 ### `GET /health`
@@ -132,7 +138,7 @@ Find average salary by department
 ## 🛠️ Tech Stack
 
 - **Backend:** Python · Flask · Flask-CORS · python-dotenv
-- **AI:** Google GenAI SDK (`google-genai`) · Gemini `gemini-3.1-flash-lite` · NLP fallback
+- **AI Engine:** [LiteLLM](https://litellm.ai/) for universal LLM routing · NLP fallback
 - **Frontend:** React 18 (via `htm`) · Markdown Parsing (`marked.js`) · Vanilla CSS
 - **Design:** Refined dark theme · Green / Grey / Black · JetBrains Mono · Inter
 

@@ -20,19 +20,20 @@ Output is post-processed by SQLOutputTuner which:
 import os
 import re
 import logging
-from google import genai
-from google.genai import types
+import litellm
+
+litellm.suppress_debug_info = True
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Gemini configuration (all tunable via environment variables)
+# LLM configuration (all tunable via environment variables)
 # ---------------------------------------------------------------------------
 
-GEMINI_MODEL       = os.getenv("GEMINI_MODEL",       "gemini-3.1-flash-lite")
-GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "0.1"))
-GEMINI_MAX_TOKENS  = int(os.getenv("GEMINI_MAX_TOKENS",    "768"))
+LLM_MODEL       = os.getenv("LLM_MODEL",       "gemini/gemini-3.1-flash-lite")
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
+LLM_MAX_TOKENS  = int(os.getenv("LLM_MAX_TOKENS",    "768"))
 
 
 # ---------------------------------------------------------------------------
@@ -219,20 +220,11 @@ _tuner = SQLOutputTuner()
 
 
 # ---------------------------------------------------------------------------
-# Gemini helper
+# LLM helper
 # ---------------------------------------------------------------------------
 
-_gemini_configured = False
-_gemini_client = None
-
-def _ensure_gemini_configured():
-    global _gemini_configured, _gemini_client
-    if not _gemini_configured:
-        api_key = os.getenv("GEMINI_API_KEY", "")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is not set.")
-        _gemini_client = genai.Client(api_key=api_key)
-        _gemini_configured = True
+def _has_api_key():
+    return any(os.getenv(k) for k in ["GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"])
 
 
 _SYSTEM_PROMPT = (
@@ -261,24 +253,24 @@ _EXPLAIN_PROMPT = (
 )
 
 
-def _generate_with_gemini(natural_query: str) -> str:
+def _generate_with_llm(natural_query: str) -> str:
     """
-    Call the Gemini API to convert a natural-language query
+    Call the configured LLM API to convert a natural-language query
     into a well-formatted SQL statement.
     """
-    _ensure_gemini_configured()
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": natural_query}
+    ]
     
-    response = _gemini_client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=natural_query,
-        config=types.GenerateContentConfig(
-            system_instruction=_SYSTEM_PROMPT,
-            temperature=GEMINI_TEMPERATURE,
-            max_output_tokens=GEMINI_MAX_TOKENS,
-        ),
+    response = litellm.completion(
+        model=LLM_MODEL,
+        messages=messages,
+        temperature=LLM_TEMPERATURE,
+        max_tokens=LLM_MAX_TOKENS,
     )
     
-    raw_sql = response.text.strip()
+    raw_sql = response.choices[0].message.content.strip()
     return _tuner.tune(raw_sql)
 
 
@@ -584,14 +576,13 @@ def generate_sql(natural_query: str) -> dict:
     if not natural_query or not natural_query.strip():
         return {"error": "Query cannot be empty."}
 
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    if api_key:
+    if _has_api_key():
         try:
-            sql = _generate_with_gemini(natural_query)
-            logger.info("SQL generated via Gemini.")
-            return {"sql": sql, "method": "gemini"}
+            sql = _generate_with_llm(natural_query)
+            logger.info("SQL generated via LLM.")
+            return {"sql": sql, "method": "llm"}
         except Exception as exc:
-            logger.warning("Gemini generation failed: %s. Falling back to rule-based.", exc)
+            logger.warning("LLM generation failed: %s. Falling back to rule-based.", exc)
 
     try:
         sql = _rule_gen.generate(natural_query)
@@ -603,28 +594,27 @@ def generate_sql(natural_query: str) -> dict:
 
 def explain_sql(sql: str) -> dict:
     """
-    Explain SQL using Gemini or return a generic rule-based response.
+    Explain SQL using configured LLM or return a generic rule-based response.
     """
     if not sql or not sql.strip():
         return {"error": "SQL cannot be empty."}
 
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    if api_key:
+    if _has_api_key():
         try:
-            _ensure_gemini_configured()
-            response = _gemini_client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=sql,
-                config=types.GenerateContentConfig(
-                    system_instruction=_EXPLAIN_PROMPT,
-                    temperature=GEMINI_TEMPERATURE,
-                    max_output_tokens=GEMINI_MAX_TOKENS,
-                ),
+            messages = [
+                {"role": "system", "content": _EXPLAIN_PROMPT},
+                {"role": "user", "content": sql}
+            ]
+            response = litellm.completion(
+                model=LLM_MODEL,
+                messages=messages,
+                temperature=LLM_TEMPERATURE,
+                max_tokens=LLM_MAX_TOKENS,
             )
-            logger.info("SQL explained via Gemini.")
-            return {"explanation": response.text.strip(), "method": "gemini"}
+            logger.info("SQL explained via LLM.")
+            return {"explanation": response.choices[0].message.content.strip(), "method": "llm"}
         except Exception as exc:
-            logger.warning("Gemini explanation failed: %s. Falling back to rule-based.", exc)
+            logger.warning("LLM explanation failed: %s. Falling back to rule-based.", exc)
 
     logger.info("SQL explained via rule-based engine.")
     return {
