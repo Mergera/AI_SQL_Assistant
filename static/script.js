@@ -374,7 +374,12 @@ function HistorySection({ history, onRestore }) {
                   onClick=${() => onRestore(entry)}
                   onKeyDown=${(e) => { if (e.key === 'Enter') onRestore(entry); }}
                 >
-                  <span class="history-query" title=${entry.query}>${entry.query}</span>
+                  <span class="history-query" title=${entry.query}>
+                    <span aria-hidden="true" style=${{ marginRight: '6px', opacity: 0.7 }}>
+                      ${(!entry.type || entry.type === 'generate') ? '⚡' : '💡'}
+                    </span>
+                    ${entry.query}
+                  </span>
                   <span class="history-time">${entry.time}</span>
                 </div>
               `)}
@@ -409,8 +414,10 @@ function Workspace({ onAddHistory, restoredEntry }) {
   // Apply a restored history entry
   useEffect(() => {
     if (!restoredEntry) return;
+    setActiveTab(restoredEntry.type || 'generate');
     setQuery(restoredEntry.query);
     setSql(restoredEntry.sql);
+    setExplanation(restoredEntry.explanation || '');
     setMethod(restoredEntry.method || '');
     setError('');
     if (textareaRef.current) {
@@ -448,7 +455,7 @@ function Workspace({ onAddHistory, restoredEntry }) {
 
         setSql(newSql);
         setMethod(newMethod);
-        onAddHistory({ query: q, sql: newSql, method: newMethod });
+        onAddHistory({ query: q, sql: newSql, method: newMethod, type: activeTab });
         showToast('SQL generated successfully', 'success');
       } else {
         const res = await fetch('/explain', {
@@ -464,6 +471,7 @@ function Workspace({ onAddHistory, restoredEntry }) {
 
         setSql(q);
         setExplanation(data.explanation);
+        onAddHistory({ query: q, sql: q, method: data.method || 'llm', explanation: data.explanation, type: activeTab });
         showToast('SQL explained successfully', 'success');
       }
     } catch (err) {
@@ -660,12 +668,14 @@ function App() {
 
   const [restoredEntry, setRestoredEntry] = useState(null);
 
-  const addHistory = useCallback(({ query, sql, method }) => {
+  const addHistory = useCallback(({ query, sql, method, explanation, type }) => {
     setHistory(prev => {
       const entry = {
         query,
         sql,
         method,
+        explanation: explanation || '',
+        type: type || 'generate',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       const next = [entry, ...prev].slice(0, MAX_HISTORY);
