@@ -52,6 +52,7 @@ def generate():
     POST /generate
     Body:    { "query": "<natural language query>" }
     Returns: { "sql": "<SQL statement>", "method": "llm|rule-based" }
+             with optional "warning" and "llm_error" fields after an LLM fallback
           or { "error": "<error message>" }
     """
     try:
@@ -87,6 +88,7 @@ def explain():
     POST /explain
     Body:    { "sql": "<SQL statement>" }
     Returns: { "explanation": "<explanation string>", "method": "llm|rule-based" }
+             with optional "warning" and "llm_error" fields after an LLM fallback
           or { "error": "<error message>" }
     """
     try:

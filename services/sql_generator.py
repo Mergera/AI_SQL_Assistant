@@ -227,6 +227,75 @@ def _has_api_key():
     return any(os.getenv(k) for k in ["GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"])
 
 
+_LLM_ERROR_MESSAGES = {
+    "authentication_failed": (
+        "Authentication with the LLM provider failed. Check the API key."
+    ),
+    "permission_denied": (
+        "The LLM provider denied access. Check the API key permissions."
+    ),
+    "model_not_found": "The configured LLM model was not found. Check LLM_MODEL.",
+    "rate_limit": "The LLM provider rate limit was exceeded. Try again later.",
+    "timeout": "The LLM provider timed out. Try again later.",
+    "connection_failed": (
+        "The LLM provider could not be reached. Check the network connection."
+    ),
+    "provider_error": "The LLM provider returned an unexpected error.",
+}
+
+
+def _llm_status_code(exc: Exception) -> int | None:
+    """Extract an HTTP status code without depending on a provider exception type."""
+    status_code = getattr(exc, "status_code", None)
+    if status_code is None:
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+
+    if isinstance(status_code, int):
+        return status_code
+    if isinstance(status_code, str) and status_code.isdigit():
+        return int(status_code)
+    return None
+
+
+def _llm_error_code(exc: Exception, status_code: int | None) -> str:
+    """Map provider-specific failures to a stable, client-facing error code."""
+    error_type = type(exc).__name__.lower()
+
+    if status_code == 401 or "authentication" in error_type:
+        return "authentication_failed"
+    if status_code == 403 or "permission" in error_type:
+        return "permission_denied"
+    if status_code == 404 or "notfound" in error_type or "not_found" in error_type:
+        return "model_not_found"
+    if status_code == 429 or "ratelimit" in error_type or "rate_limit" in error_type:
+        return "rate_limit"
+    if status_code in {408, 504} or "timeout" in error_type:
+        return "timeout"
+    if "connection" in error_type:
+        return "connection_failed"
+    return "provider_error"
+
+
+def _llm_error_diagnostics(exc: Exception) -> dict:
+    """Build safe diagnostics for an LLM failure without exposing raw details."""
+    status_code = _llm_status_code(exc)
+    code = _llm_error_code(exc, status_code)
+    model = getattr(exc, "model", None) or LLM_MODEL
+    provider = getattr(exc, "llm_provider", None)
+    if not provider and "/" in model:
+        provider = model.split("/", 1)[0]
+
+    return {
+        "code": code,
+        "message": _LLM_ERROR_MESSAGES[code],
+        "type": type(exc).__name__,
+        "status_code": status_code,
+        "provider": provider,
+        "model": model,
+    }
+
+
 _SYSTEM_PROMPT = (
     "You are an expert SQL developer. "
     "Convert the user's natural-language description into a single, valid SQL query.\n"
@@ -570,12 +639,15 @@ def generate_sql(natural_query: str) -> dict:
 
     Returns a dict with:
       - sql    : the generated SQL string
-      - method : 'gemini' | 'rule-based'
+      - method : 'llm' | 'rule-based'
+      - warning: fallback notice (only present after an LLM failure)
+      - llm_error: safe failure diagnostics (only present after an LLM failure)
       - error  : error message string (only present on failure)
     """
     if not natural_query or not natural_query.strip():
         return {"error": "Query cannot be empty."}
 
+    llm_error = None
     if _has_api_key():
         try:
             sql = _generate_with_llm(natural_query)
@@ -583,14 +655,24 @@ def generate_sql(natural_query: str) -> dict:
             return {"sql": sql, "method": "llm"}
         except Exception as exc:
             logger.warning("LLM generation failed: %s. Falling back to rule-based.", exc)
+            llm_error = _llm_error_diagnostics(exc)
 
     try:
         sql = _rule_gen.generate(natural_query)
         logger.info("SQL generated via rule-based engine.")
-        return {"sql": sql, "method": "rule-based"}
+        result = {"sql": sql, "method": "rule-based"}
+        if llm_error:
+            result.update({
+                "warning": "LLM generation failed; the rule-based fallback was used.",
+                "llm_error": llm_error,
+            })
+        return result
     except Exception as exc:
         logger.error("Rule-based generation failed: %s", exc)
-        return {"error": f"SQL generation failed: {exc}"}
+        result = {"error": f"SQL generation failed: {exc}"}
+        if llm_error:
+            result["llm_error"] = llm_error
+        return result
 
 def explain_sql(sql: str) -> dict:
     """
@@ -599,6 +681,7 @@ def explain_sql(sql: str) -> dict:
     if not sql or not sql.strip():
         return {"error": "SQL cannot be empty."}
 
+    llm_error = None
     if _has_api_key():
         try:
             messages = [
@@ -615,9 +698,16 @@ def explain_sql(sql: str) -> dict:
             return {"explanation": response.choices[0].message.content.strip(), "method": "llm"}
         except Exception as exc:
             logger.warning("LLM explanation failed: %s. Falling back to rule-based.", exc)
+            llm_error = _llm_error_diagnostics(exc)
 
     logger.info("SQL explained via rule-based engine.")
-    return {
+    result = {
         "explanation": "• This query retrieves data based on the selected columns.\n• It filters the results according to the WHERE clause.\n• It might sort or group the results depending on the clauses provided.",
         "method": "rule-based"
     }
+    if llm_error:
+        result.update({
+            "warning": "LLM explanation failed; the rule-based fallback was used.",
+            "llm_error": llm_error,
+        })
+    return result
