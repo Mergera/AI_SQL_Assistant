@@ -104,6 +104,27 @@ AI_SQL_Assistant/
 { "sql": "SELECT *\n    FROM customers\n    WHERE city = 'Pune';", "method": "llm" }
 ```
 
+If a configured LLM fails, the endpoint still returns the rule-based result and
+adds safe failure details so clients can notify the user:
+
+```json
+{
+  "sql": "SELECT *\n    FROM customers\n    WHERE city = 'Pune';",
+  "method": "rule-based",
+  "warning": "LLM generation failed; the rule-based fallback was used.",
+  "llm_error": {
+    "code": "rate_limit",
+    "message": "The LLM provider rate limit was exceeded. Try again later.",
+    "type": "RateLimitError",
+    "status_code": 429,
+    "provider": "gemini",
+    "model": "gemini/gemini-3.1-flash-lite"
+  }
+}
+```
+
+The `warning` and `llm_error` fields are omitted when no LLM call failed.
+
 ### `POST /explain`
 
 ```json
@@ -113,6 +134,9 @@ AI_SQL_Assistant/
 // Response
 { "explanation": "This query retrieves all data from the customers table where the city is Pune.", "method": "llm" }
 ```
+
+After an LLM explanation failure, this endpoint includes the same optional
+`warning` and `llm_error` fields shown above.
 
 ### `GET /health`
 
